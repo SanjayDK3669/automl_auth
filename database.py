@@ -1,0 +1,40 @@
+"""
+database.py  —  PyMongo connection & collection helpers
+"""
+import os
+from pymongo import MongoClient, ASCENDING
+from pymongo.errors import ConnectionFailure
+from dotenv import load_dotenv
+
+load_dotenv()
+
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+DB_NAME   = os.getenv("DB_NAME",   "automl_auth")
+
+# ── Singleton client ──────────────────────────────────────────────────────────
+_client: MongoClient | None = None
+
+def get_client() -> MongoClient:
+    global _client
+    if _client is None:
+        _client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        # Verify connection on first use
+        try:
+            _client.admin.command("ping")
+            print(f"✅ MongoDB connected  →  {MONGO_URI}  /  {DB_NAME}")
+        except ConnectionFailure as e:
+            print(f"❌ MongoDB connection failed: {e}")
+            raise
+    return _client
+
+def get_db():
+    return get_client()[DB_NAME]
+
+# ── Collection helpers ────────────────────────────────────────────────────────
+def users_col():
+    db = get_db()
+    col = db["users"]
+    # Ensure unique indexes exist
+    col.create_index([("email",    ASCENDING)], unique=True, name="unique_email")
+    col.create_index([("username", ASCENDING)], unique=True, name="unique_username")
+    return col
