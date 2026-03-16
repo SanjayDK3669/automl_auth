@@ -36,17 +36,17 @@ load_dotenv()
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="AutoML.ai Auth API",
+    title="RaWML.ai Auth API",
     version="3.0.0",
     description="Auth service — signup, login, forgot password",
 )
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-_origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
-origins = [o.strip() for o in _origins_raw.split(",") if o.strip()]
+# _origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
+# origins = [o.strip() for o in _origins_raw.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
