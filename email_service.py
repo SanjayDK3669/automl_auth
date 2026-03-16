@@ -6,6 +6,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
+import resend
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,6 +15,8 @@ EMAIL_ADDRESS  = os.getenv("EMAIL_ADDRESS", "")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
 APP_NAME       = "RaWML.ai"
 APP_URL        = os.getenv("APP_URL", "http://localhost:5173")
+resend.api_key = os.getenv("RESEND_API_KEY")
+FROM_EMAIL     = "dksanjay39@gmail.com"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -21,25 +24,25 @@ APP_URL        = os.getenv("APP_URL", "http://localhost:5173")
 # ═══════════════════════════════════════════════════════════════
 
 def _send(to: str, subject: str, html: str, text: str = "") -> bool:
-    """Send a single email via Gmail SMTP. Returns True on success."""
-    if not EMAIL_ADDRESS or not EMAIL_PASSWORD:
-        print("⚠️  Email credentials not set in .env — skipping email send.")
+    """Send email via Resend API (works on Render). Returns True on success."""
+    if not resend.api_key:
+        print("⚠️  RESEND_API_KEY not set in .env — skipping email send.")
         return False
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"]    = f"{APP_NAME} <{EMAIL_ADDRESS}>"
-        msg["To"]      = to
+        params = {
+            "from":    f"{APP_NAME} <{FROM_EMAIL}>",
+            "to":      [to],
+            "subject": subject,
+            "html":    html,
+        }
         if text:
-            msg.attach(MIMEText(text, "plain"))
-        msg.attach(MIMEText(html, "html"))
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-            server.sendmail(EMAIL_ADDRESS, to, msg.as_string())
-        print(f"✅ Email sent  →  {to}  |  {subject}")
+            params["text"] = text
+
+        response = resend.Emails.send(params)
+        print(f"✅ Email sent  →  {to}  |  {subject}  |  id: {response['id']}")
         return True
     except Exception as e:
-        print(f"❌ Email failed → {to} | {e}")
+        print(f"❌ Email failed → {to} | {type(e).__name__}: {e}")
         return False
 
 
