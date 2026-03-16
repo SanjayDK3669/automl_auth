@@ -48,42 +48,20 @@ class LoginRequest(BaseModel):
 # ── Forgot password ───────────────────────────────────────────────────────────
 
 class ForgotPasswordRequest(BaseModel):
-    """Step 1 — user submits their email."""
+    """Step 1 — user submits their email to verify the account exists."""
     email: EmailStr
-
-
-class VerifyOTPRequest(BaseModel):
-    """Step 2 — user submits the 6-digit OTP."""
-    email: EmailStr
-    otp:   str
-
-    @field_validator("otp")
-    @classmethod
-    def otp_digits(cls, v: str) -> str:
-        v = v.strip()
-        if not re.match(r"^\d{6}$", v):
-            raise ValueError("OTP must be exactly 6 digits.")
-        return v
 
 
 class ResetPasswordRequest(BaseModel):
-    """Step 3 — user submits new password using the reset token."""
-    reset_token:      str
-    password:         str
-    confirm_password: str
+    """Step 2 — user submits their email + new password to update it."""
+    email:        EmailStr
+    new_password: str
 
-    @field_validator("password")
+    @field_validator("new_password")
     @classmethod
     def password_strong(cls, v: str) -> str:
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters.")
-        return v
-
-    @field_validator("confirm_password")
-    @classmethod
-    def passwords_match(cls, v: str, info) -> str:
-        if "password" in info.data and v != info.data["password"]:
-            raise ValueError("Passwords do not match.")
         return v
 
 
@@ -108,17 +86,6 @@ class MessageResponse(BaseModel):
 class UsernameCheckResponse(BaseModel):
     available: bool
     message:   str
-
-
-class OTPSentResponse(BaseModel):
-    message: str
-    # We return a masked email so the frontend can display "Sent to j***@gmail.com"
-    masked_email: str
-
-
-class OTPVerifiedResponse(BaseModel):
-    message:     str
-    reset_token: str   # short-lived JWT to authorise the password reset
 
 
 class ResetSuccessResponse(BaseModel):

@@ -6,7 +6,6 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
-import resend
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,8 +14,7 @@ EMAIL_ADDRESS  = os.getenv("EMAIL_ADDRESS", "")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
 APP_NAME       = "RaWML.ai"
 APP_URL        = os.getenv("APP_URL", "http://localhost:5173")
-resend.api_key = os.getenv("RESEND_API_KEY")
-FROM_EMAIL     = "dksanjay39@gmail.com"
+
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -24,28 +22,32 @@ FROM_EMAIL     = "dksanjay39@gmail.com"
 # ═══════════════════════════════════════════════════════════════
 
 def _send(to: str, subject: str, html: str, text: str = "") -> bool:
-    """Send email via Resend API (works on Render). Returns True on success."""
-    if not resend.api_key:
-        print("⚠️  RESEND_API_KEY not set in .env — skipping email send.")
+    if not EMAIL_ADDRESS or not EMAIL_PASSWORD:
+        print("⚠️ Email credentials not set — skipping email.")
         return False
+
     try:
-        params = {
-            "from":    f"{APP_NAME} <{FROM_EMAIL}>",
-            "to":      [to],
-            "subject": subject,
-            "html":    html,
-        }
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"{APP_NAME} <{EMAIL_ADDRESS}>"
+        msg["To"] = to
+
         if text:
-            params["text"] = text
+            msg.attach(MIMEText(text, "plain"))
 
-        response = resend.Emails.send(params)
-        print(f"✅ Email sent  →  {to}  |  {subject}  |  id: {response['id']}")
+        msg.attach(MIMEText(html, "html"))
+
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+            server.sendmail(EMAIL_ADDRESS, to, msg.as_string())
+
+        print(f"✅ Email sent → {to}")
         return True
+
     except Exception as e:
-        print(f"❌ Email failed → {to} | {type(e).__name__}: {e}")
+        print(f"❌ Email failed → {e}")
         return False
-
-
 # ═══════════════════════════════════════════════════════════════
 #  Shared premium layout wrapper  (black & white theme)
 # ═══════════════════════════════════════════════════════════════
