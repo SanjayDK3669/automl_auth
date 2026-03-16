@@ -1,11 +1,11 @@
 """
 models.py  —  Pydantic request / response schemas
 """
-from pydantic import BaseModel, EmailStr, field_validator
 import re
+from pydantic import BaseModel, EmailStr, field_validator
 
 
-# ── Request bodies ────────────────────────────────────────────────────────────
+# ── Auth ──────────────────────────────────────────────────────────────────────
 
 class SignupRequest(BaseModel):
     email:            EmailStr
@@ -45,12 +45,54 @@ class LoginRequest(BaseModel):
     password: str
 
 
-# ── Response bodies ───────────────────────────────────────────────────────────
+# ── Forgot password ───────────────────────────────────────────────────────────
+
+class ForgotPasswordRequest(BaseModel):
+    """Step 1 — user submits their email."""
+    email: EmailStr
+
+
+class VerifyOTPRequest(BaseModel):
+    """Step 2 — user submits the 6-digit OTP."""
+    email: EmailStr
+    otp:   str
+
+    @field_validator("otp")
+    @classmethod
+    def otp_digits(cls, v: str) -> str:
+        v = v.strip()
+        if not re.match(r"^\d{6}$", v):
+            raise ValueError("OTP must be exactly 6 digits.")
+        return v
+
+
+class ResetPasswordRequest(BaseModel):
+    """Step 3 — user submits new password using the reset token."""
+    reset_token:      str
+    password:         str
+    confirm_password: str
+
+    @field_validator("password")
+    @classmethod
+    def password_strong(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters.")
+        return v
+
+    @field_validator("confirm_password")
+    @classmethod
+    def passwords_match(cls, v: str, info) -> str:
+        if "password" in info.data and v != info.data["password"]:
+            raise ValueError("Passwords do not match.")
+        return v
+
+
+# ── Responses ─────────────────────────────────────────────────────────────────
 
 class TokenResponse(BaseModel):
     access_token: str
     token_type:   str = "bearer"
-    user:         dict          # { id, email, username }
+    user:         dict
 
 
 class UserResponse(BaseModel):
@@ -66,3 +108,18 @@ class MessageResponse(BaseModel):
 class UsernameCheckResponse(BaseModel):
     available: bool
     message:   str
+
+
+class OTPSentResponse(BaseModel):
+    message: str
+    # We return a masked email so the frontend can display "Sent to j***@gmail.com"
+    masked_email: str
+
+
+class OTPVerifiedResponse(BaseModel):
+    message:     str
+    reset_token: str   # short-lived JWT to authorise the password reset
+
+
+class ResetSuccessResponse(BaseModel):
+    message: str
